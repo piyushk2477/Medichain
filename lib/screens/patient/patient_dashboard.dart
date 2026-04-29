@@ -525,7 +525,7 @@ class _ConnectedDoctorsPreviewState extends State<_ConnectedDoctorsPreview> {
                           ? null
                           : () => Navigator.pushNamed(
                         context,
-                        '/patient/send-data',
+                        '/patient/upload',
                         arguments: id,
                       ),
                       style: ElevatedButton.styleFrom(
