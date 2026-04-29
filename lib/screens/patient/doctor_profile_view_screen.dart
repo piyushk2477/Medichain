@@ -106,7 +106,7 @@ class _DoctorProfileViewScreenState extends State<DoctorProfileViewScreen> {
 
   void _sendData() {
     Navigator.of(context)
-        .pushNamed('/patient/send-data', arguments: widget.doctorId);
+        .pushNamed('/patient/upload', arguments: widget.doctorId);
   }
 
   @override
