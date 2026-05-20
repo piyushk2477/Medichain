@@ -212,18 +212,18 @@ class _UploadScreenState extends State<UploadScreen> {
     );
 
     if (!mounted || result == null) return;
+
+    // Show a brief success toast, then take the user straight to their records.
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Uploaded and encrypted'),
-        backgroundColor: const Color(0xFF00BFA6),
-        action: SnackBarAction(
-          label: 'View',
-          textColor: Colors.white,
-          onPressed: () =>
-              Navigator.pushReplacementNamed(context, '/patient/records'),
-        ),
+      const SnackBar(
+        content: Text('Uploaded and encrypted ✓'),
+        backgroundColor: Color(0xFF00BFA6),
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
       ),
     );
+
+    Navigator.pushReplacementNamed(context, '/patient/records');
   }
 
   Future<String?> _askForTitle({required String defaultText}) async {

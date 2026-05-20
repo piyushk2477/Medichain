@@ -31,7 +31,7 @@ class _PatientRequestDetailScreenState
     return _supabase
         .from('doctor_requests')
         .select('id, status, created_at, patient_id, '
-        'patient:profiles!fk_patient(*)')
+        'patient:profiles!patient_id(*)')
         .eq('id', widget.requestId)
         .maybeSingle();
   }

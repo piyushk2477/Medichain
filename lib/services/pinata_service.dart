@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 /// Result returned by Pinata after a successful pin.
@@ -27,11 +28,11 @@ class PinataUploadResult {
 /// before public release move uploads to a Supabase Edge Function so this
 /// secret never lives on user devices.
 class PinataService {
-  // ⚠️ REPLACE BOTH OF THESE with your own values from app.pinata.cloud.
-  // - JWT: API Keys → New Key → enable pinFileToIPFS scope → copy JWT
-  // - Gateway: Gateways tab → copy your subdomain (without https://)
-  static const String _jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIzZTc4OTAzZS02NDY4LTQ3MjQtYTEyYy01MDQ5NjFiZDNkNTgiLCJlbWFpbCI6InBpeXVzaGthbmFrZGFuZGVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6Ijk2OTEzYmQ4ZWVhYWRiNDMxYjkwIiwic2NvcGVkS2V5U2VjcmV0IjoiOWIzMmJiYTc0NGQ4ZjFkMjM1ZThlMTRlOTcwNGM0ZmFmMWE2MzY0NzE0MjBiZjJmOTVhODQyYjg1NjUzOTkzZiIsImV4cCI6MTgwODcyMTI3M30.zvVH2bdJa8iSpfILoFr12BvBLo6yQZUXoMsRJQ4I5uM';
-  static const String _gatewayHost = 'pink-quiet-bandicoot-816.mypinata.cloud';
+  // Secrets are loaded from `.env` (see project root). Configure with:
+  //   PINATA_JWT=...        (App Keys → New Key → pinFileToIPFS scope → JWT)
+  //   PINATA_GATEWAY=...    (Gateways tab → subdomain, no https://)
+  static String get _jwt => dotenv.env['PINATA_JWT']!;
+  static String get _gatewayHost => dotenv.env['PINATA_GATEWAY']!;
 
   static const String _pinEndpoint =
       'https://api.pinata.cloud/pinning/pinFileToIPFS';

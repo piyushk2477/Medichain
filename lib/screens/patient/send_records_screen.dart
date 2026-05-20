@@ -35,6 +35,10 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
   final Set<String> _selected = {};
   bool _sending = false;
 
+  // Expiry: null = no expiry (forever).
+  Duration? _expiryDuration = const Duration(days: 7);
+  DateTime? _customExpiryAt; // set when user picks "Custom"
+
   @override
   void initState() {
     super.initState();
@@ -48,22 +52,44 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
     final user = _supabase.auth.currentUser;
     if (user == null) return _PickerData(records: [], doctors: []);
 
-    // Two parallel-ish queries kept separate so the types stay clean.
-    final recordsFuture = RecordsService.listMyRecords();
-    final doctorsFuture = _supabase
-        .from('doctor_requests')
-        .select(
-        'doctor:doctors!fk_doctor(id, name, specialization, hospital_name, profiles(full_name))')
-        .eq('patient_id', user.id)
-        .eq('status', 'accepted');
+    debugPrint('[SendRecords] Loading for patient: ${user.id}');
 
-    final records = await recordsFuture;
-    final docRows = (await doctorsFuture as List).cast<Map<String, dynamic>>();
+    // 1. Patient's own records + accepted request IDs.
+    final records = await RecordsService.listMyRecords();
+    final requestRows = (await _supabase
+            .from('doctor_requests')
+            .select('doctor_id, status')
+            .eq('patient_id', user.id)) as List;
 
-    final doctors = docRows
-        .map((r) => r['doctor'] as Map<String, dynamic>?)
-        .whereType<Map<String, dynamic>>()
+    debugPrint('[SendRecords] All doctor_requests for patient: $requestRows');
+
+    final requests = requestRows
+        .cast<Map<String, dynamic>>()
+        .where((r) => r['status'] == 'accepted')
         .toList();
+
+    debugPrint('[SendRecords] Accepted requests: $requests');
+
+    if (requests.isEmpty) {
+      return _PickerData(records: records, doctors: []);
+    }
+
+    // 2. Fetch the actual doctor rows by ID — avoids relying on FK names.
+    final doctorIds =
+        requests.map((r) => r['doctor_id'] as String).toList();
+
+    debugPrint('[SendRecords] Fetching doctors with IDs: $doctorIds');
+
+    // doctors table has its own 'name' column — no join needed.
+    final doctorRows = await _supabase
+        .from('doctors')
+        .select('id, name, specialization, hospital_name')
+        .inFilter('id', doctorIds);
+
+    debugPrint('[SendRecords] Doctor rows returned: $doctorRows');
+
+    final doctors =
+        (doctorRows as List).cast<Map<String, dynamic>>();
 
     return _PickerData(records: records, doctors: doctors);
   }
@@ -140,15 +166,11 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: doctors.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
                   final d = doctors[i];
                   final id = d['id'] as String;
-                  final name = (d['name'] as String?) ??
-                      ((d['profiles']
-                      as Map<String, dynamic>?)?['full_name']
-                      as String?) ??
-                      'Doctor';
+                  final name = (d['name'] as String?) ?? 'Doctor';
                   final spec = d['specialization'] as String?;
                   return Material(
                     color: const Color(0xFFF5F5FA),
@@ -208,9 +230,19 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
   Future<void> _share(String doctorId) async {
     setState(() => _sending = true);
     try {
+      // Resolve the actual cutoff timestamp:
+      //   - Custom picker → exact DateTime user selected
+      //   - Preset duration → now + duration
+      //   - null → no expiry (forever)
+      final DateTime? expiresAt = _customExpiryAt ??
+          (_expiryDuration == null
+              ? null
+              : DateTime.now().add(_expiryDuration!));
+
       final count = await SharingService.shareRecords(
         recordIds: _selected.toList(),
         doctorId: doctorId,
+        expiresAt: expiresAt,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -309,12 +341,29 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
                   ),
                 ),
               ),
+              _ExpiryPicker(
+                duration: _expiryDuration,
+                customAt: _customExpiryAt,
+                onPreset: (d) => setState(() {
+                  _expiryDuration = d;
+                  _customExpiryAt = null;
+                }),
+                onCustom: () async {
+                  final picked = await _pickCustomExpiry();
+                  if (picked != null) {
+                    setState(() {
+                      _customExpiryAt = picked;
+                      _expiryDuration = null;
+                    });
+                  }
+                },
+              ),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                   itemCount: data.records.length,
-                  separatorBuilder: (_, __) =>
-                  const SizedBox(height: 10),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
                   itemBuilder: (context, i) {
                     final r = data.records[i];
                     final isSelected = _selected.contains(r.id);
@@ -382,6 +431,26 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
         ),
       ),
     );
+  }
+
+  /// Show a date picker, then a time picker, and return the combined DateTime.
+  /// Returns null if the user cancels either step.
+  Future<DateTime?> _pickCustomExpiry() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 5)),
+    );
+    if (date == null || !mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+    );
+    if (time == null) return null;
+    return DateTime(
+        date.year, date.month, date.day, time.hour, time.minute);
   }
 
   Widget _emptyMessage({
@@ -514,4 +583,145 @@ class _PickerData {
   final List<MedicalRecord> records;
   final List<Map<String, dynamic>> doctors;
   _PickerData({required this.records, required this.doctors});
+}
+
+/// Horizontal chip selector for how long the doctor will retain access.
+/// Presets cover the common cases; "Custom…" opens a date+time picker.
+class _ExpiryPicker extends StatelessWidget {
+  final Duration? duration;       // null = forever or custom mode
+  final DateTime? customAt;       // non-null = custom mode active
+  final ValueChanged<Duration?> onPreset;
+  final VoidCallback onCustom;
+
+  const _ExpiryPicker({
+    required this.duration,
+    required this.customAt,
+    required this.onPreset,
+    required this.onCustom,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final presets = <_Preset>[
+      _Preset('Forever', null),
+      _Preset('1 hour', const Duration(hours: 1)),
+      _Preset('24 hours', const Duration(hours: 24)),
+      _Preset('7 days', const Duration(days: 7)),
+      _Preset('30 days', const Duration(days: 30)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.schedule, size: 16, color: Color(0xFF6C63FF)),
+              const SizedBox(width: 6),
+              const Text(
+                'Access expires',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A2E)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  customAt != null
+                      ? '· ${_fmt(customAt!)}'
+                      : (duration == null
+                          ? '· no expiry'
+                          : '· in ${_humanize(duration!)}'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                ...presets.map((p) {
+                  final selected = customAt == null && duration == p.duration;
+                  return _chip(
+                    label: p.label,
+                    selected: selected,
+                    onTap: () => onPreset(p.duration),
+                  );
+                }),
+                _chip(
+                  label: customAt == null ? 'Custom…' : 'Custom ✎',
+                  selected: customAt != null,
+                  onTap: onCustom,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: selected ? const Color(0xFF6C63FF) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFF6C63FF)
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : Colors.grey[700],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _humanize(Duration d) {
+    if (d.inDays >= 1) return '${d.inDays} day${d.inDays == 1 ? '' : 's'}';
+    if (d.inHours >= 1) return '${d.inHours} hour${d.inHours == 1 ? '' : 's'}';
+    return '${d.inMinutes} min';
+  }
+
+  static String _fmt(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mn = d.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year} $hh:$mn';
+  }
+}
+
+class _Preset {
+  final String label;
+  final Duration? duration;
+  const _Preset(this.label, this.duration);
 }

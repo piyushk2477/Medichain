@@ -4,8 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'doctor_profile_edit_screen.dart';
 import 'patient_records_screen.dart';
 import 'patient_request_detail_screen.dart';
-// 👇 CHANGE THIS to the actual path of your login screen file.
-import 'package:medichain_beta/screens/auth/login_screen.dart';
 
 /// Main shell for a doctor after they sign in. Three tabs:
 ///   1. Requests   — pending patient connection requests (accept / reject)
@@ -29,18 +27,21 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = [
-      _RequestsTab(refreshKey: _refreshKey, onChanged: _refreshAll),
-      _PatientsTab(refreshKey: _refreshKey),
-      _ProfileTab(refreshKey: _refreshKey, onChanged: _refreshAll),
-    ];
+    // Build only the active tab so the inactive tabs' widgets are not in the
+    // tree during logout — avoids the _dependents.isEmpty assertion that fires
+    // when pushAndRemoveUntil dismantles an IndexedStack with live children.
+    final Widget body = switch (_index) {
+      0 => _RequestsTab(key: const ValueKey(0), refreshKey: _refreshKey, onChanged: _refreshAll),
+      1 => _PatientsTab(key: const ValueKey(1), refreshKey: _refreshKey),
+      _ => _ProfileTab(key: const ValueKey(2), refreshKey: _refreshKey, onChanged: _refreshAll),
+    };
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_titleFor(_index)),
         centerTitle: false,
       ),
-      body: IndexedStack(index: _index, children: tabs),
+      body: body,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -79,7 +80,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 class _RequestsTab extends StatefulWidget {
   final int refreshKey;
   final VoidCallback onChanged;
-  const _RequestsTab({required this.refreshKey, required this.onChanged});
+  const _RequestsTab({super.key, required this.refreshKey, required this.onChanged});
 
   @override
   State<_RequestsTab> createState() => _RequestsTabState();
@@ -99,7 +100,7 @@ class _RequestsTabState extends State<_RequestsTab> {
   void didUpdateWidget(covariant _RequestsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshKey != widget.refreshKey) {
-      setState(() => _future = _load());
+      setState(() { _future = _load(); });
     }
   }
 
@@ -121,7 +122,7 @@ class _RequestsTabState extends State<_RequestsTab> {
     final rows = await _supabase
         .from('doctor_requests')
         .select('id, status, created_at, patient_id, '
-        'patient:profiles!fk_patient(id, full_name, email)')
+        'patient:profiles!patient_id(id, full_name, email)')
         .eq('doctor_id', doctorId)
         .eq('status', 'pending')
         .order('created_at', ascending: false);
@@ -157,7 +158,7 @@ class _RequestsTabState extends State<_RequestsTab> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() => _future = _load());
+        setState(() { _future = _load(); });
         await _future;
       },
       child: FutureBuilder<List<_RequestItem>>(
@@ -169,7 +170,7 @@ class _RequestsTabState extends State<_RequestsTab> {
           if (snapshot.hasError) {
             return _ErrorView(
               message: '${snapshot.error}',
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() { _future = _load(); }),
             );
           }
           final items = snapshot.data ?? [];
@@ -183,7 +184,7 @@ class _RequestsTabState extends State<_RequestsTab> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, i) {
               final r = items[i];
               return _RequestCard(
@@ -345,7 +346,7 @@ class _RequestCard extends StatelessWidget {
 
 class _PatientsTab extends StatefulWidget {
   final int refreshKey;
-  const _PatientsTab({required this.refreshKey});
+  const _PatientsTab({super.key, required this.refreshKey});
 
   @override
   State<_PatientsTab> createState() => _PatientsTabState();
@@ -365,7 +366,7 @@ class _PatientsTabState extends State<_PatientsTab> {
   void didUpdateWidget(covariant _PatientsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshKey != widget.refreshKey) {
-      setState(() => _future = _load());
+      setState(() { _future = _load(); });
     }
   }
 
@@ -384,7 +385,7 @@ class _PatientsTabState extends State<_PatientsTab> {
     final rows = await _supabase
         .from('doctor_requests')
         .select('patient_id, created_at, '
-        'patient:profiles!fk_patient(id, full_name, email)')
+        'patient:profiles!patient_id(id, full_name, email)')
         .eq('doctor_id', doctorId)
         .eq('status', 'accepted')
         .order('created_at', ascending: false);
@@ -398,7 +399,7 @@ class _PatientsTabState extends State<_PatientsTab> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() => _future = _load());
+        setState(() { _future = _load(); });
         await _future;
       },
       child: FutureBuilder<List<_PatientItem>>(
@@ -410,7 +411,7 @@ class _PatientsTabState extends State<_PatientsTab> {
           if (snapshot.hasError) {
             return _ErrorView(
               message: '${snapshot.error}',
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() { _future = _load(); }),
             );
           }
           final items = snapshot.data ?? [];
@@ -424,7 +425,7 @@ class _PatientsTabState extends State<_PatientsTab> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final p = items[i];
               return Card(
@@ -504,7 +505,7 @@ class _PatientItem {
 class _ProfileTab extends StatefulWidget {
   final int refreshKey;
   final VoidCallback onChanged;
-  const _ProfileTab({required this.refreshKey, required this.onChanged});
+  const _ProfileTab({super.key, required this.refreshKey, required this.onChanged});
 
   @override
   State<_ProfileTab> createState() => _ProfileTabState();
@@ -524,7 +525,7 @@ class _ProfileTabState extends State<_ProfileTab> {
   void didUpdateWidget(covariant _ProfileTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshKey != widget.refreshKey) {
-      setState(() => _future = _load());
+      setState(() { _future = _load(); });
     }
   }
 
@@ -540,19 +541,14 @@ class _ProfileTabState extends State<_ProfileTab> {
 
   Future<void> _signOut() async {
     final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
     try {
       await _supabase.auth.signOut();
       if (!mounted) return;
-
-      // Replace the entire navigation stack with the login screen so the
-      // user can't "back" their way into the dashboard after signing out.
-      // 👇 CHANGE THIS to your app's login screen widget.
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-      );
+      // Use pushNamedAndRemoveUntil so the navigator handles route teardown
+      // cleanly without us holding a stale navigator reference.
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
     } catch (e) {
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Sign out failed: $e')),
       );

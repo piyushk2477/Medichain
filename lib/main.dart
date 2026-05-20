@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:medichain_beta/screens/auth/login_screen.dart';
 import 'package:medichain_beta/screens/patient/patient_dashboard.dart';
@@ -12,10 +13,11 @@ import 'package:medichain_beta/services/supabase_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
+
   await Supabase.initialize(
-    url: 'https://pfrityglbthkyedoydos.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmcml0eWdsYnRoa3llZG95ZG9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NzY0ODUsImV4cCI6MjA5MTA1MjQ4NX0._12FVYoVV-6q6RqqYk31VJAIuj-Uv1_jzIKWIdMy9Ak',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const MedichainApp());

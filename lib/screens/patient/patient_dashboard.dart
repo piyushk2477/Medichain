@@ -401,8 +401,8 @@ class _ConnectedDoctorsPreviewState extends State<_ConnectedDoctorsPreview> {
 
     final rows = await Supabase.instance.client
         .from('doctor_requests')
-        .select('doctor_id, doctor:doctors!fk_doctor('
-        'id, name, specialization, hospital_name, profiles(full_name))')
+        .select('doctor_id, doctor:doctors!doctor_id('
+        'id, name, specialization, hospital_name)')
         .eq('patient_id', user.id)
         .eq('status', 'accepted')
         .limit(5);

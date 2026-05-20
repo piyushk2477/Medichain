@@ -3,6 +3,7 @@ import 'package:open_filex/open_filex.dart';
 
 import 'package:medichain_beta/services/records_service.dart';
 
+import 'audit_log_screen.dart';
 import 'send_records_screen.dart';
 
 class RecordsScreen extends StatefulWidget {
@@ -45,7 +46,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
   }
 
   void _refresh() {
-    setState(() => _future = RecordsService.listMyRecords());
+    setState(() { _future = RecordsService.listMyRecords(); });
   }
 
   List<MedicalRecord> _applyFilters(List<MedicalRecord> all) {
@@ -230,8 +231,8 @@ class _RecordsScreenState extends State<RecordsScreen> {
                       padding:
                       const EdgeInsets.fromLTRB(20, 6, 20, 24),
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) =>
-                      const SizedBox(height: 10),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
                       itemBuilder: (context, i) => _RecordCard(
                         record: filtered[i],
                         onChanged: _refresh,
@@ -522,6 +523,16 @@ class _RecordCardState extends State<_RecordCard> {
                         ),
                       );
                       break;
+                    case 'audit':
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AuditLogScreen(
+                            recordId:    r.id,
+                            recordTitle: r.title,
+                          ),
+                        ),
+                      );
+                      break;
                     case 'delete':
                       _delete();
                       break;
@@ -547,10 +558,19 @@ class _RecordCardState extends State<_RecordCard> {
                     ),
                   ),
                   PopupMenuItem(
+                    value: 'audit',
+                    child: ListTile(
+                      leading: Icon(Icons.history, color: Colors.deepPurple),
+                      title: Text('Access Log'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
                       leading:
-                      Icon(Icons.delete_outline, color: Color(0xFFFF6B6B)),
+                          Icon(Icons.delete_outline, color: Color(0xFFFF6B6B)),
                       title: Text('Delete',
                           style: TextStyle(color: Color(0xFFFF6B6B))),
                       contentPadding: EdgeInsets.zero,

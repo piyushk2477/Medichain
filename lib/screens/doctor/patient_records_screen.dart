@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
 
-import 'package:medichain_beta/services/records_service.dart';
 import 'package:medichain_beta/services/sharing_service.dart';
+
+import 'secure_record_viewer.dart';
 
 /// Doctor's view of records a specific patient has shared with them.
 /// Only shows actively shared (non-revoked) records.
@@ -124,7 +124,7 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
               itemBuilder: (context, i) =>
                   _SharedRecordCard(item: items[i]),
             );
@@ -150,15 +150,15 @@ class _SharedRecordCardState extends State<_SharedRecordCard> {
     if (_opening) return;
     setState(() => _opening = true);
     try {
-      final file =
-      await RecordsService.decryptToTempFile(widget.item.record);
-      if (!mounted) return;
-      final result = await OpenFilex.open(file.path);
-      if (result.type != ResultType.done && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open: ${result.message}')),
-        );
-      }
+      // In-app viewer: decrypts to memory, no download, no share UI.
+      // The viewer itself handles its own loading/error state and
+      // logs the on-chain view event.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SecureRecordViewer(record: widget.item.record),
+          fullscreenDialog: true,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -203,6 +203,8 @@ class _SharedRecordCardState extends State<_SharedRecordCard> {
           if (r.category != null) r.category!,
           if (widget.item.sharedAt != null)
             'Shared ${_friendlyDate(widget.item.sharedAt!)}',
+          if (widget.item.expiresAt != null)
+            'expires ${_friendlyExpiry(widget.item.expiresAt!)}',
         ].join(' · ')),
         trailing: IconButton(
           icon: const Icon(Icons.open_in_new),
@@ -236,5 +238,19 @@ class _SharedRecordCardState extends State<_SharedRecordCard> {
     if (diff.inDays == 1) return 'yesterday';
     if (diff.inDays < 7) return '${diff.inDays} days ago';
     return '${d.day}/${d.month}/${d.year}';
+  }
+
+  /// Future-tense countdown — e.g. "in 2 hours", "in 5 days".
+  String _friendlyExpiry(DateTime d) {
+    final diff = d.difference(DateTime.now());
+    if (diff.isNegative) return 'expired';
+    if (diff.inMinutes < 60) return 'in ${diff.inMinutes} min';
+    if (diff.inHours < 24) {
+      return 'in ${diff.inHours} hour${diff.inHours == 1 ? '' : 's'}';
+    }
+    if (diff.inDays < 30) {
+      return 'in ${diff.inDays} day${diff.inDays == 1 ? '' : 's'}';
+    }
+    return 'on ${d.day}/${d.month}/${d.year}';
   }
 }

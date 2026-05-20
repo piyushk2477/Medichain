@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medichain_beta/services/supabase_service.dart';
-import 'package:medichain_beta/screens/doctor/doctor_profile_edit_screen.dart'; // 🔥 ADD THIS IMPORT
+import 'package:medichain_beta/services/wallet_service.dart';
+import 'package:medichain_beta/screens/doctor/doctor_profile_edit_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -35,12 +36,24 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 1️⃣  Create Supabase account
       await SupabaseService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _nameController.text.trim(),
         role: _selectedRole,
       );
+
+      // 2️⃣  Generate Ethereum wallet and save address to profiles table.
+      //     Best-effort — a failure here must not block registration.
+      try {
+        final walletAddress = await WalletService.generateWallet();
+        await SupabaseService.saveWalletAddress(walletAddress);
+        debugPrint('[Signup] Wallet generated: $walletAddress');
+      } catch (walletErr) {
+        // Wallet error is non-fatal; user can still register and retry later.
+        debugPrint('[Signup] Wallet generation failed (non-fatal): $walletErr');
+      }
 
       if (!mounted) return;
 
@@ -51,7 +64,6 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       );
 
-      // 🔥 UPDATED SAFE NAVIGATION
       if (_selectedRole == 'doctor') {
         Navigator.pushReplacement(
           context,
@@ -62,7 +74,6 @@ class _SignupScreenState extends State<SignupScreen> {
       } else {
         Navigator.pop(context);
       }
-
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
