@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:medichain_beta/theme/app_theme.dart';
 
 /// Opens when the doctor taps a pending request card.
 /// Shows the patient's full profile, then lets the doctor accept or reject.
@@ -26,8 +27,6 @@ class _PatientRequestDetailScreenState
   }
 
   Future<Map<String, dynamic>?> _load() async {
-    // Pull the request + the patient's profile in one call.
-    // Adjust selected profile columns to match your `profiles` table.
     return _supabase
         .from('doctor_requests')
         .select('id, status, created_at, patient_id, '
@@ -46,8 +45,9 @@ class _PatientRequestDetailScreenState
       Navigator.of(context).pop(status);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not update: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update: $e'), backgroundColor: AppColors.accentRed),
+      );
       setState(() => _acting = false);
     }
   }
@@ -55,7 +55,7 @@ class _PatientRequestDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Patient request')),
+      backgroundColor: AppColors.surface,
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _future,
         builder: (context, snapshot) {
@@ -63,16 +63,8 @@ class _PatientRequestDetailScreenState
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || snapshot.data == null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  snapshot.hasError
-                      ? '${snapshot.error}'
-                      : 'Request not found.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return _ErrorState(
+              message: snapshot.hasError ? '${snapshot.error}' : 'Request not found.',
             );
           }
           return _Body(
@@ -102,7 +94,6 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final patient = (data['patient'] as Map?) ?? const {};
     final name = (patient['full_name'] ?? 'Unknown patient') as String;
     final email = patient['email'] as String?;
@@ -117,127 +108,202 @@ class _Body extends StatelessWidget {
         ? null
         : DateTime.tryParse(data['created_at'] as String);
 
-    final initials = name.isEmpty
-        ? '?'
-        : name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .map((p) => p[0])
-        .take(2)
-        .join()
-        .toUpperCase();
+    final initials = _initialsFor(name);
 
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Center(
-                child: CircleAvatar(
-                  radius: 44,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    initials,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
+          child: CustomScrollView(
+            slivers: [
+              // ── Branded header with avatar ────────────────────────────
+              SliverToBoxAdapter(
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF3B82F6), AppColors.primary, Color(0xFF1D4ED8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(28),
+                      bottomRight: Radius.circular(28),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -50,
+                        top: 10,
+                        child: Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () => Navigator.of(context).pop(),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.16),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Text(
+                                  'Patient Request',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                const SizedBox(width: 40),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              width: 96,
+                              height: 96,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.18),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.28), width: 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            _StatusChip(status: status),
+                            if (createdAt != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Requested ${_friendlyDate(createdAt)}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.78),
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Center(
-                child:
-                Text(name, style: theme.textTheme.headlineSmall),
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: _StatusChip(status: status),
-              ),
-              if (createdAt != null) ...[
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Requested ${_friendlyDate(createdAt)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      _Section(title: 'Contact', children: [
+                        _InfoTile(icon: Icons.mail_outline_rounded, label: 'Email', value: email),
+                        _InfoTile(icon: Icons.phone_outlined, label: 'Phone', value: phone),
+                        _InfoTile(icon: Icons.home_outlined, label: 'Address', value: address),
+                      ]),
+                      const SizedBox(height: 14),
+                      _Section(title: 'Personal', children: [
+                        _InfoTile(icon: Icons.cake_outlined, label: 'Date of birth', value: dob),
+                        _InfoTile(icon: Icons.wc_outlined, label: 'Gender', value: gender),
+                        _InfoTile(icon: Icons.bloodtype_outlined, label: 'Blood group', value: bloodGroup),
+                      ]),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
-              _Section(title: 'Contact', children: [
-                _InfoTile(icon: Icons.email_outlined, label: 'Email', value: email),
-                _InfoTile(icon: Icons.phone_outlined, label: 'Phone', value: phone),
-                _InfoTile(
-                    icon: Icons.home_outlined, label: 'Address', value: address),
-              ]),
-              const SizedBox(height: 16),
-              _Section(title: 'Personal', children: [
-                _InfoTile(
-                    icon: Icons.cake_outlined,
-                    label: 'Date of birth',
-                    value: dob),
-                _InfoTile(
-                    icon: Icons.wc_outlined, label: 'Gender', value: gender),
-                _InfoTile(
-                    icon: Icons.bloodtype_outlined,
-                    label: 'Blood group',
-                    value: bloodGroup),
-              ]),
+              ),
             ],
           ),
         ),
         if (status == 'pending')
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: acting ? null : onReject,
-                      icon: const Icon(Icons.close),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text('Reject'),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: acting ? null : onReject,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.accentRed,
+                          side: BorderSide(color: AppColors.accentRed.withOpacity(0.5)),
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('Reject'),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: acting ? null : onAccept,
-                      icon: acting
-                          ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                          : const Icon(Icons.check),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text('Accept'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: acting ? null : onAccept,
+                        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                        icon: acting
+                            ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                            : const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Accept'),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
       ],
     );
-  }
-
-  String _friendlyDate(DateTime d) {
-    final now = DateTime.now();
-    final diff = now.difference(d);
-    if (diff.inDays == 0) return 'today';
-    if (diff.inDays == 1) return 'yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return '${d.day}/${d.month}/${d.year}';
   }
 }
 
@@ -247,32 +313,37 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final (Color bg, Color fg, String label) = switch (status) {
-      'accepted' => (
-      theme.colorScheme.tertiaryContainer,
-      theme.colorScheme.onTertiaryContainer,
-      'Accepted'
-      ),
-      'rejected' => (
-      theme.colorScheme.errorContainer,
-      theme.colorScheme.onErrorContainer,
-      'Rejected'
-      ),
-      _ => (
-      theme.colorScheme.secondaryContainer,
-      theme.colorScheme.onSecondaryContainer,
-      'Pending'
-      ),
+    final (Color dot, String label) = switch (status) {
+      'accepted' => (Color(0xFF4ADE80), 'Accepted'),
+      'rejected' => (AppColors.accentRed, 'Rejected'),
+      _ => (Color(0xFFFBBF24), 'Pending'),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: bg,
+        color: Colors.white.withOpacity(0.18),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.24)),
       ),
-      child: Text(label,
-          style: theme.textTheme.labelMedium?.copyWith(color: fg)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -284,22 +355,26 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-            child: Text(title,
-                style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600)),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+              ),
+            ),
           ),
           ...children,
           const SizedBox(height: 8),
@@ -313,22 +388,103 @@ class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? value;
-  const _InfoTile(
-      {required this.icon, required this.label, required this.value});
+  const _InfoTile({required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
-      title: Text(label,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-      subtitle: Text(
-        value == null || value!.isEmpty ? 'Not provided' : value!,
-        style: theme.textTheme.bodyLarge,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, color: AppColors.primary, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value == null || value!.isEmpty ? 'Not provided' : value!,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    color: value == null || value!.isEmpty
+                        ? AppColors.textTertiary
+                        : AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  const _ErrorState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back),
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.error_outline, size: 56, color: AppColors.accentRed),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const Spacer(flex: 2),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _initialsFor(String name) {
+  if (name.trim().isEmpty) return '?';
+  return name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .map((p) => p.isEmpty ? '' : p[0])
+      .take(2)
+      .join()
+      .toUpperCase();
+}
+
+String _friendlyDate(DateTime d) {
+  final diff = DateTime.now().difference(d);
+  if (diff.inDays == 0) return 'today';
+  if (diff.inDays == 1) return 'yesterday';
+  if (diff.inDays < 7) return '${diff.inDays} days ago';
+  return '${d.day}/${d.month}/${d.year}';
 }
