@@ -517,7 +517,7 @@ class _ProfileBodyState extends State<_ProfileBody>
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 130)),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
 
@@ -546,7 +546,6 @@ class _ProfileBodyState extends State<_ProfileBody>
                   acting: widget.acting,
                   onRequest: widget.onRequest,
                   onSendData: widget.onSendData,
-                  onBookAppointment: widget.onBookAppointment,
                 ),
               ),
             ),
@@ -1406,82 +1405,64 @@ class _ActionButton extends StatelessWidget {
   final bool acting;
   final VoidCallback onRequest;
   final VoidCallback onSendData;
-  final VoidCallback onBookAppointment;
 
   const _ActionButton({
     required this.status,
     required this.acting,
     required this.onRequest,
     required this.onSendData,
-    required this.onBookAppointment,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (status == 'accepted')
-          ElevatedButton.icon(
-            onPressed: onSendData,
-            style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50)),
-            icon: const Icon(Icons.send_rounded, size: 17),
-            label: Text('Send Records',
-                style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800, fontSize: 15)),
-          )
-        else if (status == 'pending')
-          ElevatedButton.icon(
-            onPressed: null,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(50),
-              backgroundColor: Colors.grey.shade200,
-              foregroundColor: Colors.grey.shade500,
-            ),
-            icon: const Icon(Icons.hourglass_top_rounded, size: 17),
-            label: Text('Request Pending',
-                style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800, fontSize: 15)),
-          )
-        else
-          ElevatedButton.icon(
-            onPressed: acting ? null : onRequest,
-            style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50)),
-            icon: acting
-                ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.4, color: Colors.white))
-                : const Icon(Icons.handshake_rounded, size: 17),
-            label: Text(
-              acting
-                  ? 'Sending…'
-                  : (status == 'rejected'
-                  ? 'Send Request Again'
-                  : 'Send Connection Request'),
-              style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800, fontSize: 15),
-            ),
-          ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: onBookAppointment,
-          icon: const Icon(Icons.calendar_month_rounded, size: 17),
-          label: Text('Book Appointment',
-              style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800, fontSize: 15)),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary, width: 1.5),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-          ),
+    // Single contextual primary action. "Book Appointment" lives in the
+    // quick-action row above, so it's intentionally not duplicated here —
+    // this keeps the sticky bar short and the doctor info fully visible.
+    if (status == 'accepted') {
+      return ElevatedButton.icon(
+        onPressed: onSendData,
+        style:
+        ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+        icon: const Icon(Icons.send_rounded, size: 17),
+        label: Text('Send Records',
+            style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800, fontSize: 15)),
+      );
+    }
+    if (status == 'pending') {
+      return ElevatedButton.icon(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size.fromHeight(50),
+          backgroundColor: Colors.grey.shade200,
+          foregroundColor: Colors.grey.shade500,
         ),
-      ],
+        icon: const Icon(Icons.hourglass_top_rounded, size: 17),
+        label: Text('Request Pending',
+            style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800, fontSize: 15)),
+      );
+    }
+    return ElevatedButton.icon(
+      onPressed: acting ? null : onRequest,
+      style:
+      ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+      icon: acting
+          ? const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+              strokeWidth: 2.4, color: Colors.white))
+          : const Icon(Icons.handshake_rounded, size: 17),
+      label: Text(
+        acting
+            ? 'Sending…'
+            : (status == 'rejected'
+            ? 'Send Request Again'
+            : 'Send Connection Request'),
+        style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w800, fontSize: 15),
+      ),
     );
   }
 }

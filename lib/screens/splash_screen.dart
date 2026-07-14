@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
-import 'package:medichain_beta/widgets/medichain_logo.dart';
 import 'package:medichain_beta/services/supabase_service.dart';
 import 'package:medichain_beta/screens/onboarding_screen.dart';
 import 'package:medichain_beta/screens/auth/login_screen.dart';
@@ -27,12 +26,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
 
-    // Match the brand to the status/nav bars for a polished splash.
+    // Light splash -> dark status/nav bar icons so they stay visible.
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.primary,
-      systemNavigationBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ));
 
     _logoController = AnimationController(
@@ -110,43 +109,38 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.white,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.05),
-            radius: 1.1,
-            colors: [Color(0xFF3B82F6), AppColors.primary, Color(0xFF1D4ED8)],
-            stops: [0.0, 0.55, 1.0],
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFF1F5FB)],
           ),
         ),
         child: SafeArea(
           child: Stack(
             children: [
-              // Centered logo
+              // Centered logo mark (no wordmark)
               Center(
                 child: FadeTransition(
                   opacity: _logoFade,
                   child: ScaleTransition(
                     scale: Tween<double>(begin: 0.6, end: 1.0).animate(_logoScale),
-                    child: MedichainLogo(
-                      size: 120,
-                      shadows: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 30,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
+                    child: Image.asset(
+                      'assets/images/medichain_icon.png',
+                      width: 150,
+                      height: 150,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
               ),
-              // Wordmark + tagline near the bottom
+              // Wordmark near the bottom
               Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 56),
+                  padding: const EdgeInsets.only(bottom: 64),
                   child: FadeTransition(
                     opacity: _textController,
                     child: SlideTransition(
@@ -157,27 +151,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Medichain',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'YOUR HEALTH · ON THE CHAIN',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.78),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 2.4,
-                            ),
+                          Image.asset(
+                            'assets/images/medichain_wordmark.png',
+                            width: 230,
+                            fit: BoxFit.contain,
                           ),
                           const SizedBox(height: 28),
-                          _LoadingDots(color: Colors.white.withOpacity(0.85)),
+                          _LoadingDots(color: AppColors.primary.withOpacity(0.85)),
                         ],
                       ),
                     ),

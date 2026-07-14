@@ -154,43 +154,58 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Keyboard avoidance is handled entirely by the single scroll view below.
+    // The header and form live in ONE SingleChildScrollView, so when the
+    // keyboard opens the page scrolls as a unit — the header scrolls up out of
+    // the way and the focused field is lifted above the keyboard. The header
+    // is no longer a fixed slot that the form card can slide back underneath,
+    // which was what made the blue banner appear to cover the text field.
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _AnimatedHeader(
-            pulseCtrl: _pulseCtrl,
-            bgCtrl: _bgCtrl,
-            entranceCtrl: _entranceCtrl,
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Transform.translate(
-                  offset: const Offset(0, -28),
-                  child: _FormCard(
-                    formKey: _formKey,
-                    emailController: _emailController,
-                    passwordController: _passwordController,
-                    obscurePassword: _obscurePassword,
-                    isLoading: _isLoading,
-                    shakeCtrl: _shakeCtrl,
-                    stagger: _stagger,
-                    errorMessage: _errorMessage,
-                    onDismissError: () =>
-                        setState(() => _errorMessage = null),
-                    onTogglePassword: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                    ),
-                    onSubmit: _login,
+      resizeToAvoidBottomInset: true,
+      body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        // Keep the focused field clear of the keyboard with a little breathing
+        // room; the scroll view auto-scrolls it into view.
+        child: Column(
+          children: [
+            _AnimatedHeader(
+              pulseCtrl: _pulseCtrl,
+              bgCtrl: _bgCtrl,
+              entranceCtrl: _entranceCtrl,
+            ),
+            Padding(
+              // The card overlaps the header bottom (-28) for depth, exactly
+              // as before. Bottom padding grows with the keyboard so the last
+              // field never ends up flush against it.
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Transform.translate(
+                offset: const Offset(0, -28),
+                child: _FormCard(
+                  formKey: _formKey,
+                  emailController: _emailController,
+                  passwordController: _passwordController,
+                  obscurePassword: _obscurePassword,
+                  isLoading: _isLoading,
+                  shakeCtrl: _shakeCtrl,
+                  stagger: _stagger,
+                  errorMessage: _errorMessage,
+                  onDismissError: () =>
+                      setState(() => _errorMessage = null),
+                  onTogglePassword: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
                   ),
+                  onSubmit: _login,
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
