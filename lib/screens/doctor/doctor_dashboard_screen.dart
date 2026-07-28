@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:medichain_beta/services/appointment_service.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
+import 'package:medichain_beta/widgets/wallet_setup_dialog.dart';
 
 import 'doctor_profile_edit_screen.dart';
 import 'patient_records_screen.dart';
@@ -1075,6 +1076,15 @@ class _ProfileTabState extends State<_ProfileTab> {
     if (ok == true) { widget.onChanged(); setState(() => _future = _load()); }
   }
 
+  Future<void> _changeWallet() async {
+    final result = await showWalletSetupDialog(context);
+    if (result != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wallet updated successfully')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>?>(
@@ -1148,6 +1158,8 @@ class _ProfileTabState extends State<_ProfileTab> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _Card(children: [
               _Row(Icons.edit_outlined,       'Edit Profile',  null, onTap: _edit),
+              const _Div(),
+              _Row(Icons.account_balance_wallet_outlined, 'Wallet', null, onTap: _changeWallet),
               const _Div(),
               _Row(Icons.headset_mic_outlined, 'Support',      null,
                   onTap: () => ScaffoldMessenger.of(context).showSnackBar(

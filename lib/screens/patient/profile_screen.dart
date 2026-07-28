@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medichain_beta/services/contract_service.dart';
+import 'package:medichain_beta/services/records_service.dart';
 import 'package:medichain_beta/services/supabase_service.dart';
+import 'package:medichain_beta/services/wallet_service.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
 import 'package:medichain_beta/widgets/patient_shell.dart';
+import 'package:medichain_beta/widgets/wallet_setup_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'terms_and_conditions_screen.dart';
 import 'edit_profile_screen.dart';
@@ -74,11 +78,17 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (_) {}
 
     try {
-      final rows = await client
-          .from('shared_records')
-          .select('id')
-          .eq('patient_id', user.id);
-      shared = (rows as List).length;
+      final myRecords = await RecordsService.listMyRecords();
+      for (final r in myRecords) {
+        final doctors = await ContractService.getDoctorsWithAccess(r.id);
+        for (final doc in doctors) {
+          final has = await ContractService.hasAccess(
+            doctorAddress: doc,
+            recordUuid: r.id,
+          );
+          if (has) shared++;
+        }
+      }
     } catch (_) {}
 
     // Names / extras — try to read full_name from profiles, fall back to
@@ -145,6 +155,21 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _changeWallet() async {
+    final currentAddress = await WalletService.getAddress();
+    final result = await showWalletSetupDialog(context);
+    if (result != null && mounted) {
+      final newAddress = await WalletService.getAddress();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Wallet updated: ${newAddress?.substring(0, 10)}...'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      setState(() => _data = _load());
+    }
   }
 
   Future<void> _logout() async {
@@ -230,7 +255,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                         onTap: _openterms,
                       ),
                       const _MenuDivider(),
-
+                      _MenuItem(
+                        icon: Icons.account_balance_wallet_outlined,
+                        tint: const Color(0xFFF59E0B),
+                        label: 'Wallet',
+                        subtitle: 'Import or change your blockchain wallet',
+                        onTap: _changeWallet,
+                      ),
                     ]),
                   ),
                 ),

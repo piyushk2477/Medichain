@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:medichain_beta/services/records_service.dart';
 import 'package:medichain_beta/services/sharing_service.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
+import 'package:medichain_beta/widgets/faucet_dialog.dart';
 import 'package:medichain_beta/widgets/patient_shell.dart';
 
 /// Two-step share flow — LOGIC UNCHANGED:
@@ -137,10 +138,14 @@ class _SendRecordsScreenState extends State<SendRecordsScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share: $e'),
-            backgroundColor: AppColors.accentRed),
-      );
+      if (isGasError(e)) {
+        await showFaucetDialog(context, isError: true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not share: $e'),
+              backgroundColor: AppColors.accentRed),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }

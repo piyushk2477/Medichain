@@ -7,6 +7,7 @@ import 'package:medichain_beta/theme/app_theme.dart';
 import 'package:medichain_beta/widgets/patient_shell.dart';
 
 import 'audit_log_screen.dart';
+import 'manage_access_screen.dart';
 import 'send_records_screen.dart';
 
 class RecordsScreen extends StatefulWidget {
@@ -702,6 +703,12 @@ class _RecordCardState extends State<_RecordCard> {
                             preselectedRecordIds: {r.id}),
                       ));
                       break;
+                    case 'manage':
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ManageAccessScreen(
+                            recordId: r.id, recordTitle: r.title),
+                      ));
+                      break;
                     case 'audit':
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => AuditLogScreen(
@@ -716,6 +723,8 @@ class _RecordCardState extends State<_RecordCard> {
                 itemBuilder: (_) => [
                   _menu('open', Icons.open_in_new_rounded, 'Open'),
                   _menu('share', Icons.send_rounded, 'Send to doctor'),
+                  _menu('manage', Icons.admin_panel_settings_rounded,
+                      'Manage Access', tint: AppColors.accentRed),
                   _menu('audit', Icons.history_rounded, 'Access Log',
                       tint: AppColors.primary),
                   _menu('delete', Icons.delete_outline_rounded, 'Delete',

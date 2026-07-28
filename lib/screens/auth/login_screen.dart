@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:medichain_beta/services/supabase_service.dart';
+import 'package:medichain_beta/services/wallet_service.dart';
 import 'package:medichain_beta/screens/auth/signup_screen.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
+import 'package:medichain_beta/widgets/wallet_setup_dialog.dart';
 import 'package:medichain_beta/widgets/medichain_logo.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -90,6 +92,15 @@ class _LoginScreenState extends State<LoginScreen>
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      // Ensure wallet exists for this user on this device.
+      if (!await WalletService.hasWallet()) {
+        if (mounted) setState(() => _isLoading = false);
+        if (!mounted) return;
+        await showWalletSetupDialog(context);
+      }
 
       if (!mounted) return;
       final role = await SupabaseService.getUserRole();

@@ -48,10 +48,10 @@ class AccessLogEntry {
 
 /// Interacts with the deployed `MediAccessControl` smart contract.
 ///
-/// Network config (local Hardhat on Android emulator):
-///   RPC URL  : http://10.0.2.2:8545  (emulator loopback → host 127.0.0.1)
+/// Network config (Local Hardhat):
+///   RPC URL  : http://10.0.2.2:8545 (Android emulator) or http://localhost:8545 (USB via adb reverse)
 ///   Chain ID : 31337
-///   Contract : 0x5FbDB2315678afecb367f032d93F642f64180aa3
+///   Contract : deployed locally — update address after each deploy
 ///
 /// All write methods (grantAccess, revokeAccess, logView, logDownload) sign
 /// with the wallet stored in [WalletService].
@@ -60,16 +60,19 @@ class AccessLogEntry {
 class ContractService {
   // ── Network / contract config ─────────────────────────────────────────────
 
-  /// RPC URL for the current development network.
-  /// Android emulator maps `10.0.2.2` to the host machine's `127.0.0.1`.
-  static const String _rpcUrl = 'http://10.0.2.2:8545';
+  /// RPC URL — 127.0.0.1:8545 via adb reverse for USB-connected device.
+  static const String _rpcUrl = 'http://127.0.0.1:8545';
 
   /// EIP-155 chain ID — 31337 for local Hardhat.
   static const int _chainId = 31337;
 
-  /// Address where MediAccessControl is deployed.
-  static const String _contractAddress =
-      '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+  /// Address where MediAccessControl is deployed locally.
+  /// UPDATE THIS after running: npx hardhat run scripts/deploy.js --network localhost
+  static String _contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+
+  /// True only on the local Hardhat dev chain (where pre-funded test keys exist).
+  /// On any real network the Hardhat faucet flow must NOT be shown to users.
+  static bool get isLocalDevNetwork => _chainId == 31337;
 
   // ── ABI ───────────────────────────────────────────────────────────────────
 
@@ -201,7 +204,7 @@ class ContractService {
             encryptedKeyForDoctor,
             BigInt.from(expiresAt),
           ],
-          maxGas: 300000,
+          maxGas: 500000,
         ),
         chainId: _chainId,
       );
@@ -238,7 +241,7 @@ class ContractService {
             EthereumAddress.fromHex(doctorAddress),
             recordId,
           ],
-          maxGas: 200000,
+          maxGas: 500000,
         ),
         chainId: _chainId,
       );
@@ -383,6 +386,29 @@ class ContractService {
     }
   }
 
+  // ── Doctor: Active Records ────────────────────────────────────────────────
+
+  /// Returns the bytes32 record IDs that are currently actively shared with
+  /// [doctorAddress] (non-revoked, non-expired).
+  static Future<List<Uint8List>> getActiveRecordsForDoctor(
+      String doctorAddress) async {
+    final client = _newClient();
+    try {
+      final result = await client.call(
+        contract: _contract,
+        function: _contract.function('getActiveRecordsForDoctor'),
+        params: [EthereumAddress.fromHex(doctorAddress)],
+      );
+      if (result.isEmpty) return [];
+      return (result[0] as List).cast<Uint8List>();
+    } catch (e) {
+      debugPrint('[ContractService] getActiveRecordsForDoctor error: $e');
+      return [];
+    } finally {
+      client.dispose();
+    }
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   /// Load credentials or throw a user-friendly error.
@@ -418,7 +444,7 @@ class ContractService {
           contract:   _contract,
           function:   _contract.function(functionName),
           parameters: [recordId],
-          maxGas:     200000,
+          maxGas:     500000,
         ),
         chainId: _chainId,
       );

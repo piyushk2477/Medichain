@@ -88,6 +88,18 @@ class RecordsService {
         : MedicalRecord.fromMap(row as Map<String, dynamic>);
   }
 
+  /// Fetch multiple records by their IDs.
+  static Future<List<MedicalRecord>> getRecordsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final rows = await _supabase
+        .from('medical_records')
+        .select()
+        .inFilter('id', ids);
+    return (rows as List)
+        .map((r) => MedicalRecord.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Download from IPFS, verify hash, decrypt, return raw bytes.
   static Future<Uint8List> decryptRecord(MedicalRecord r) async {
     return UploadService.downloadAndDecrypt(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:medichain_beta/services/supabase_service.dart';
-import 'package:medichain_beta/services/wallet_service.dart';
 import 'package:medichain_beta/screens/doctor/doctor_profile_edit_screen.dart';
 import 'package:medichain_beta/theme/app_theme.dart';
+import 'package:medichain_beta/widgets/wallet_setup_dialog.dart';
 import 'package:medichain_beta/widgets/medichain_logo.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -45,15 +45,10 @@ class _SignupScreenState extends State<SignupScreen> {
         role: _selectedRole,
       );
 
-      // 2️⃣  Generate Ethereum wallet — non-fatal on failure.
-      try {
-        final walletAddress = await WalletService.generateWallet();
-        await SupabaseService.saveWalletAddress(walletAddress);
-        debugPrint('[Signup] Wallet generated: $walletAddress');
-      } catch (walletErr) {
-        debugPrint('[Signup] Wallet generation failed (non-fatal): $walletErr');
-      }
+      if (!mounted) return;
 
+      // 2️⃣  Wallet setup — import existing or generate new.
+      await showWalletSetupDialog(context);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

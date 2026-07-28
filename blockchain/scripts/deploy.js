@@ -23,6 +23,8 @@ function getRpcUrl() {
   if (network.name === "hardhat" || network.name === "localhost") {
     return "http://127.0.0.1:8545";
   }
+  if (network.name === "besu") return process.env.BESU_RPC_URL || "http://127.0.0.1:8545";
+  if (network.name === "geth") return process.env.GETH_RPC_URL || "http://200.97.171.178:8545";
   if (network.name === "amoy") return process.env.POLYGON_AMOY_RPC_URL;
   return process.env.POLYGON_MAINNET_RPC_URL;
 }

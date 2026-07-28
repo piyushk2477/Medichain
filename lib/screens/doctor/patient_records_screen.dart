@@ -410,6 +410,8 @@ class _SharedRecordCardState extends State<_SharedRecordCard> {
                   ],
                 ),
               ),
+              const Icon(Icons.verified_rounded, color: AppColors.success, size: 20),
+              const SizedBox(width: 8),
               Container(
                 width: 32,
                 height: 32,

@@ -6,6 +6,16 @@
 *.key
 secrets/
 
+# ── Besu private network (generated keys + per-node runtime files) ───────────
+besu/**/networkFiles/
+besu/**/config/
+besu/**/key
+besu/**/key.pub
+
+# ── Geth private network (generated wallet, keys, genesis) ───────────────────
+geth/out/
+geth/config/
+
 # ── Node ───────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*

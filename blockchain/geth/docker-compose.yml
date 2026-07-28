@@ -1,0 +1,66 @@
+# ── Medichain private Ethereum node (Geth / Clique PoA, single signer) ───────
+# Runs on your VPS (200.97.171.178). Files expected beside this compose file:
+#   ./config/genesis.json    — from `node geth/generate.js` (blockchain/geth/out/)
+#   ./config/signer-key.txt  — raw signer private key, no 0x (from out/)
+#   ./config/password.txt    — keystore password (from out/)
+#
+# First-time init + run:
+#   docker compose run --rm geth-init      # imports key + writes genesis (once)
+#   docker compose up -d                   # start the sealing node
+#   docker compose logs -f geth            # watch: "Commit new sealing work" every 2s
+# -----------------------------------------------------------------------------
+services:
+  # One-shot: import the signer key and initialise the chain data dir.
+  geth-init:
+    image: ethereum/client-go:v1.14.12
+    volumes:
+      - ./config:/config:ro
+      - geth-data:/data
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        if [ ! -f /data/geth/chaindata/CURRENT ]; then
+          echo "==> importing signer account";
+          geth --datadir /data account import --password /config/password.txt /config/signer-key.txt;
+          echo "==> writing genesis";
+          geth --datadir /data init /config/genesis.json;
+        else
+          echo "==> data dir already initialised, skipping";
+        fi
+    restart: "no"
+
+  # The long-running node: mines (seals) blocks and serves RPC.
+  geth:
+    image: ethereum/client-go:v1.14.12
+    container_name: medichain-geth
+    restart: unless-stopped
+    depends_on:
+      geth-init:
+        condition: service_completed_successfully
+    ports:
+      - "8545:8545"              # RPC — PUBLIC on the VPS IP (MVP). Lock down later (see README).
+      - "30303:30303/tcp"        # P2P (harmless for a solo node; open if you add peers)
+      - "30303:30303/udp"
+    volumes:
+      - ./config:/config:ro
+      - geth-data:/data
+    command:
+      - --datadir=/data
+      - --networkid=131419                 # MUST match CHAIN_ID in generate.js
+      - --http
+      - --http.addr=0.0.0.0                 # inside the container; host mapping keeps it on 127.0.0.1
+      - --http.port=8545
+      - --http.api=eth,net,web3,txpool
+      - --http.corsdomain=*
+      - --http.vhosts=*
+      - --miner.gasprice=0                  # accept free (0-price) transactions
+      - --mine                              # Clique seals with the unlocked authorized signer
+      - --unlock=SIGNER_ADDRESS_HERE        # <-- replace with your host wallet address (0x...)
+      - --password=/config/password.txt
+      - --allow-insecure-unlock
+      - --nodiscover                        # solo node: don't advertise on the public DHT
+
+volumes:
+  geth-data:
